@@ -1,6 +1,6 @@
 {
   "name": "jewish-texts-reference",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Look up Jewish texts and references via the Sefaria MCP server — Tanakh, Talmud, Mishnah, Halakha, Kabbalah, commentary, dictionaries, and topics.",
   "author": {
     "name": "Daniel Rosehill",

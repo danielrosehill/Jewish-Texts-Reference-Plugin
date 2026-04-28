@@ -10,6 +10,10 @@ Covers Tanakh, Mishnah, Talmud Bavli & Yerushalmi, Halakha (Mishneh Torah, Shulc
 
 - **find-reference** — discover *where* in the library something is said. Combines keyword search, English semantic search, in-book search, dictionary lookup, and topic browsing for users who have a concept or phrase but not a citation.
 
+- **strip-nikkud** — remove Hebrew vowel points (nikkud) and/or cantillation marks (te'amim). Two paths: offline regex (default) or Dicta's `removenikud.dicta.org.il` public API.
+
+- **add-nikkud** — vocalise unvocalized Hebrew (the reverse of strip-nikkud). Defaults to Dicta's nakdan public API (best quality, supports modern / rabbinic / poetry genres); falls back to the offline [`unikud`](https://github.com/morrisalp/unikud) Python package on explicit request.
+
 ## Bundled MCP server
 
 This plugin attaches the Sefaria SSE MCP server (`https://mcp.sefaria.org/sse`) automatically. No API key required — Sefaria's MCP endpoint is public.
