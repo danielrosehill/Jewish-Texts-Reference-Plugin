@@ -8,7 +8,7 @@ Covers Tanakh, Mishnah, Talmud Bavli & Yerushalmi, Halakha (Mishneh Torah, Shulc
 
 - **find-text** — retrieve the actual text of a known passage. Trigger when the user names a specific reference ("Genesis 1:1", "Berakhot 2a", "Mishneh Torah, Teshuvah 3:4") and wants to read it in Hebrew, English, or both. Includes commentary lookup, manuscript images, and bibliographic info.
 
-- **find-reference** — discover *where* in the library something is said. Combines keyword search, English semantic search, in-book search, dictionary lookup, and topic browsing for users who have a concept or phrase but not a citation.
+- **find-reference** — discover *where* in the library something is said. Combines keyword search, in-book search, dictionary lookup, and topic browsing for users who have a concept or phrase but not a citation.
 
 - **strip-nikkud** — remove Hebrew vowel points (nikkud) and/or cantillation marks (te'amim). Two paths: offline regex (default) or Dicta's `removenikud.dicta.org.il` public API.
 
