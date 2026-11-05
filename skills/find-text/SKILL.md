@@ -20,23 +20,37 @@ Trigger on requests like:
 
 Skip for open-ended topical questions ("what does Judaism say about X") — that's `find-reference`.
 
+## Route
+
+Sefaria's public REST API with `curl`. No key, no MCP server. Base `https://www.sefaria.org`.
+Send a `User-Agent` header and URL-encode references (spaces as `%20` or `_`). Verified 2026-11-05.
+
 ## Procedure
 
-1. **Resolve the reference.** If the user's wording is ambiguous, partial, or transliterated unusually, call `clarify_name_argument` (with `type_filter: "ref"` when looking for a textual citation) to get the canonical Sefaria reference string before fetching. Examples that benefit from clarification: "the part of Avot about Hillel", "Sanhedrin daf 90", "Rambam on repentance".
+1. **Resolve the reference.** If the wording is ambiguous, partial, or transliterated unusually:
+   `curl -s -A canopy-skill 'https://www.sefaria.org/api/name/Rashi%20on%20Genesis%201:1'`.
+   `is_ref: true` gives the canonical `ref` and `url`. Otherwise read `completions` for candidates.
 
-2. **Fetch the text.** Call `get_text` with the canonical reference. Pass `version_language`:
-   - `"source"` — Hebrew/Aramaic only
-   - `"english"` — English translation only
-   - `"both"` — side-by-side (default for most reading requests)
-   - omit — every available version
+2. **Fetch the text.** `GET /api/v3/texts/<ref>?version=<v>&return_format=text_only`. Repeat `version` for several:
+   - `version=source`: Hebrew/Aramaic only
+   - `version=english`: English translation only
+   - `version=source&version=english`: side by side (default for most reading requests)
+   - `version=translation|all`: every translation in any language
 
-3. **Translation choice.** If the user wants a particular English translation or wants to see all available translations side-by-side, call `get_english_translations` instead of (or in addition to) `get_text`.
+   The response has `ref`, `heRef` and `versions[]`, each with `language`, `versionTitle` and `text`.
+   Drop `return_format=text_only` if you need Sefaria's markup and footnotes.
 
-4. **Commentary on the passage.** If the user wants to read what commentators say *on* this verse/sugya (Rashi, Ramban, Tosafot, Steinsaltz, etc.), call `get_links_between_texts` with `with_text: "1"` to pull the linked commentary text in one go. Filter or summarise the returned links by commentator if the response is large.
+3. **Translation choice.** `version=english|all` lists every English translation (17 for Genesis 1:1).
+   `version=english|<versionTitle>` picks one.
 
-5. **Manuscripts.** If the user asks about historical manuscript witnesses or wants to see a scanned page, call `get_available_manuscripts` and offer `get_manuscript_image` for a specific image URL.
+4. **Commentary on the passage.** `GET /api/links/<ref>?with_text=1` returns linked text with `category`,
+   `type`, `collectiveTitle`, `ref`, `text` and `he`. It is large (1,828 links for Genesis 1:1), so pipe it through
+   `jq`, keep `category == "Commentary"`, and filter by the commentator asked for. Summarise unless asked for it verbatim.
 
-6. **Bibliographic / structural questions.** If the user asks "how is this book organised" or "who wrote this and when", use `get_text_catalogue_info` (index data) or `get_text_or_category_shape` (hierarchy) — not `get_text`.
+5. **Manuscripts.** `GET /api/manuscripts/<ref>` returns `manuscript_slug`, `image_url` and `thumbnail_url` per witness.
+
+6. **Bibliographic / structural questions.** Use `GET /api/v2/raw/index/<title>` for author, date, categories and
+   schema, and `GET /api/shape/<title>` for the hierarchy, not the text endpoint.
 
 ## Presentation
 
@@ -48,6 +62,6 @@ Skip for open-ended topical questions ("what does Judaism say about X") — that
 ## Edge cases
 
 - **Talmud daf references** use side notation: `Berakhot 2a`, `Berakhot 2b`. If a user says "Berakhot 2", clarify which side, or fetch both and present them.
-- **Mishneh Torah / Shulchan Aruch** require the full path: `Mishneh Torah, Teshuvah 3:4`, `Shulchan Aruch, Orach Chayim 1:1`. Use `clarify_name_argument` if unsure.
+- **Mishneh Torah / Shulchan Aruch** require the full path: `Mishneh Torah, Teshuvah 3:4`, `Shulchan Aruch, Orach Chayim 1:1`. Use `/api/name/` if unsure.
 - **Zohar** references use the section + page format: `Zohar 1:15a`.
-- If `get_text` returns empty for a valid-looking reference, the version may not exist in that language — fall back to `version_language: null` to see what's available, or call `get_english_translations` to enumerate.
+- If the text endpoint returns no text for a valid-looking reference, the version may not exist in that language. List what exists with `version=source|all` and `version=translation|all`. Plain `version=all` returns nothing.

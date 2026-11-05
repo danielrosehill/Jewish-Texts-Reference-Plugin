@@ -20,20 +20,37 @@ Trigger on requests like:
 
 Skip when the user already names a specific reference — that's `find-text`.
 
-## Choosing the right search tool
+## Route
 
-Sefaria exposes several complementary search tools. Pick based on the shape of the query:
+Sefaria's public REST API with `curl`. No key, no MCP server. Base `https://www.sefaria.org`.
+Send a `User-Agent` header and URL-encode the query. Verified 2026-11-05.
 
-| Query shape | Tool |
+## Choosing the right search
+
+| Query shape | Call |
 |---|---|
-| Hebrew/Aramaic phrase, exact wording, or distinctive English keyword | `text_search` |
-| English concept where the user cares about *meaning*, not exact wording | `english_semantic_search` |
-| Searching only within one named work (e.g. "in the Mishneh Torah", "in Berakhot") | `search_in_book` |
-| Defining a term or looking it up in Jastrow / Klein / other lexica | `search_in_dictionaries` |
-| Browsing a known topic by slug (e.g. `moses`, `sabbath`, `repentance`) | `get_topic_details` |
-| Validating a slug, author name, or category before searching | `clarify_name_argument` |
+| Hebrew/Aramaic phrase, exact wording, or distinctive English keyword | `POST /api/search-wrapper` |
+| Searching only within one work or category | `POST /api/search-wrapper` with `filters` |
+| Defining a term in Jastrow, Klein, BDB, Ben Yehuda | `GET /api/words/<word>` |
+| Browsing a known topic by slug (`moses`, `sabbath`, `repentance`) | `GET /api/topics/<slug>?with_refs=1&with_links=1` |
+| Validating a name, slug or book | `GET /api/name/<text>` |
+| This week's parasha, today's daf | `GET /api/calendars?timezone=Asia/Jerusalem&diaspora=0` |
 
-For broad questions, run more than one in parallel — e.g. `text_search` for the Hebrew term and `english_semantic_search` for the concept — and merge results.
+Search call:
+
+```bash
+curl -s -A canopy-skill -H 'Content-Type: application/json' https://www.sefaria.org/api/search-wrapper \
+  -d '{"query":"לשון הרע","type":"text","size":10,"field":"naive_lemmatizer","filters":["Talmud"],"filter_fields":["path"]}'
+```
+
+Use `field: "naive_lemmatizer"` for Hebrew and `"exact"` for an English keyword. Hits are in `hits.hits[]`. The reference is
+in `_id`, in the form `Yoma 22b:15 (William Davidson Edition - Aramaic [he])`, and the snippet is in `highlight.<field>`.
+The same passage appears once per version, so deduplicate on the reference before the parenthesis.
+
+**There is no semantic search on this route.** The MCP's `english_semantic_search` has no public REST equivalent. For an
+English concept, search its Hebrew technical term, browse the topic page, and say the search was by keyword.
+
+For broad questions, run the keyword search and the topic lookup together and merge the results.
 
 ## Procedure
 
@@ -43,17 +60,17 @@ For broad questions, run more than one in parallel — e.g. `text_search` for th
    - A definition (dictionary)
    - A specific work scoped (Mishneh Torah, Talmud Bavli, etc.)
 
-2. **Resolve names if needed.** If the query mentions a book, topic slug, or author whose canonical Sefaria form is uncertain, call `clarify_name_argument` first. For book-scoped searches, you may also need `clarify_search_path_filter` to convert a book name into the search filter path that `text_search` accepts via its `filters` argument.
+2. **Resolve names if needed.** If the query mentions a book, topic slug, or author whose canonical Sefaria form is uncertain, call `/api/name/` first. For a book-scoped search, `filters` takes the category path (`["Talmud"]`, `["Tanakh"]`, `["Halakhah"]`) with `filter_fields: ["path"]`.
 
-3. **Hebrew vs English.** Hebrew/Aramaic queries are markedly more reliable on `text_search` than English (translations vary). When the user gives an English concept that has a well-known Hebrew/Aramaic technical term (lashon hara, teshuvah, tzedakah, hachnasat orchim, kavod, kedushah), search the Hebrew term as well.
+3. **Hebrew vs English.** Hebrew/Aramaic queries are markedly more reliable in search than English (translations vary). When the user gives an English concept that has a well-known Hebrew/Aramaic technical term (lashon hara, teshuvah, tzedakah, hachnasat orchim, kavod, kedushah), search the Hebrew term as well.
 
 4. **Run the search.** Default `size: 10` is usually fine; raise to 25–50 for topical surveys. Apply `filters` (e.g. `["Tanakh"]`, `["Talmud"]`, `["Halakhah"]`) when the user has scoped the search.
 
-5. **Topic browsing.** When the user names a recognised topic (sabbath, moses, prayer, charity), call `get_topic_details` with `with_refs: true, with_links: true` for a structured view of canonical references plus related topics. Use `clarify_name_argument` with `type_filter: "Topic"` to find the slug if the user gives a phrase.
+5. **Topic browsing.** When the user names a recognised topic (sabbath, moses, prayer, charity), call `/api/topics/<slug>?with_refs=1&with_links=1` for canonical references (`refs`) plus related topics (`links`). Use `/api/name/` to validate the slug.
 
-6. **Definitions.** For "what does X mean" lexical questions, prefer `search_in_dictionaries` over `text_search` — it returns Jastrow / Klein / Even-Shoshan / etc. entries directly.
+6. **Definitions.** For "what does X mean" lexical questions, prefer `/api/words/<word>` over search. It returns entries by `parent_lexicon` (Jastrow, Klein, BDB, Ben Yehuda).
 
-7. **Drill down.** Once you have promising hits, call `get_text` on the top one or two references to confirm they actually answer the user's question, before returning the list. Don't blindly trust the search snippet — translations can mislead.
+7. **Drill down.** Once you have promising hits, fetch the top one or two references with `find-text` to confirm they actually answer the user's question, before returning the list. Don't blindly trust the search snippet — translations can mislead.
 
 ## Presentation
 
@@ -66,5 +83,5 @@ For broad questions, run more than one in parallel — e.g. `text_search` for th
 
 - **No results in English** is common and usually a translation-coverage issue, not a real absence. Re-run in Hebrew.
 - **Apocryphal / "everyone knows the Talmud says…" quotes** — many popular quotations are misattributed. If you can't find a source after a careful search, say so plainly rather than guessing.
-- **Ambiguous topics** (e.g. "Joseph" — Joseph the patriarch? Joseph Karo? Joseph ben Matityahu?) — call `clarify_name_argument` and confirm with the user before committing to one branch.
-- **Calendar-anchored requests** ("what's this week's parasha" / "what's today's daf yomi") — call `get_current_calendar` first to anchor, then pull the text with `find-text`.
+- **Ambiguous topics** (e.g. "Joseph" — Joseph the patriarch? Joseph Karo? Joseph ben Matityahu?) — call `/api/name/` and confirm with the user before committing to one branch.
+- **Calendar-anchored requests** ("what's this week's parasha" / "what's today's daf yomi") — call `/api/calendars` first to anchor, then pull the text with `find-text`.

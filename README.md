@@ -1,6 +1,6 @@
 # Jewish-Texts-Reference
 
-A Claude Code plugin for looking up Jewish texts and references through the [Sefaria](https://www.sefaria.org) library, via the official [Sefaria MCP server](https://mcp.sefaria.org/sse).
+A Claude Code plugin for looking up Jewish texts and references through the [Sefaria](https://www.sefaria.org) library, through its public REST API (no key, no MCP server).
 
 Covers Tanakh, Mishnah, Talmud Bavli & Yerushalmi, Halakha (Mishneh Torah, Shulchan Aruch), Kabbalah (Zohar), Midrash, Liturgy, and the full commentary tradition — plus Hebrew/Aramaic dictionaries and a topic graph.
 
@@ -14,18 +14,11 @@ Covers Tanakh, Mishnah, Talmud Bavli & Yerushalmi, Halakha (Mishneh Torah, Shulc
 
 - **add-nikkud** — vocalise unvocalized Hebrew (the reverse of strip-nikkud). Defaults to Dicta's nakdan public API (best quality, supports modern / rabbinic / poetry genres); falls back to the offline [`unikud`](https://github.com/morrisalp/unikud) Python package on explicit request.
 
-## Bundled MCP server
+## Route
 
-This plugin attaches the Sefaria SSE MCP server (`https://mcp.sefaria.org/sse`) automatically. No API key required — Sefaria's MCP endpoint is public.
-
-Tools exposed:
-
-- `get_text`, `get_english_translations`, `get_links_between_texts`
-- `text_search`, `english_semantic_search`, `search_in_book`, `search_in_dictionaries`
-- `get_topic_details`, `get_current_calendar`
-- `clarify_name_argument`, `clarify_search_path_filter`
-- `get_text_catalogue_info`, `get_text_or_category_shape`
-- `get_available_manuscripts`, `get_manuscript_image`
+The skills call `https://www.sefaria.org/api/...` with `curl`: texts, names, search, dictionaries, topics, links,
+manuscripts and calendars. Nothing to install or authenticate. Sefaria's MCP server (`https://mcp.sefaria.org/mcp`)
+is no longer bundled. The one capability lost with it is English semantic search, which has no public REST equivalent.
 
 ## Installation
 
